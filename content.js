@@ -100,7 +100,6 @@
         Array.from(video.textTracks||[]).forEach(track=>{
           if (track.__aiLineTranslatorBound) return;
           track.__aiLineTranslatorBound=true;
-          track.mode="hidden";
           track.addEventListener("cuechange",()=>{
             const active=Array.from(track.activeCues||[]).map(c=>c.text).join(" ");
             if(active) submitCaption(active);
