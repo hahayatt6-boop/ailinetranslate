@@ -20,3 +20,12 @@ document.getElementById("stop").addEventListener("click", async () => {
   const result = await chrome.runtime.sendMessage({ type: "STOP_CAPTURE" });
   status.textContent = result?.ok ? "已暂停捕获。" : "暂停失败。";
 });
+
+document.getElementById("startReader").addEventListener("click", async () => {
+  const result = await chrome.runtime.sendMessage({type:"START_SUBTITLE_READING"});
+  status.textContent = result?.ok ? "已启动网页字幕读取。请播放带英文字幕的课程。" : "启动失败：" + (result?.error || "未知错误");
+});
+document.getElementById("stopReader").addEventListener("click", async () => {
+  const result = await chrome.runtime.sendMessage({type:"STOP_SUBTITLE_READING"});
+  status.textContent = result?.ok ? "已停止网页字幕读取。" : "停止失败：" + (result?.error || "未知错误");
+});
