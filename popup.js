@@ -1,4 +1,4 @@
-const ids = ["apiKey","asrBaseUrl","asrModel","translationBaseUrl","translationModel","targetLanguage","subtitleMode"];
+const ids = ["apiKey","asrBaseUrl","asrModel","translationBaseUrl","translationModel","targetLanguage","subtitleMode","azureTranslatorKey","azureTranslatorRegion","googleTranslateKey"];
 const visible = document.getElementById("subtitleVisible");
 chrome.storage.local.get(["subtitleVisible"]).then(v => { visible.checked = v.subtitleVisible !== false; });
 visible.addEventListener("change", () => chrome.storage.local.set({subtitleVisible:visible.checked}));
