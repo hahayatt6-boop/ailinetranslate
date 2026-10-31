@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "AI Line Translator",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Live bilingual subtitles for browser audio and native captions.",
   "permissions": ["activeTab", "tabs", "webNavigation", "tabCapture", "offscreen", "storage"],
   "host_permissions": ["<all_urls>", "https://translate.googleapis.com/*"],
