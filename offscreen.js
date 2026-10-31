@@ -72,7 +72,7 @@ async function processQueue() {
   busy = true;
   const blob = queue.shift();
   try {
-    const cfg = await chrome.storage.local.get(["apiKey", "asrBaseUrl", "asrModel", "translationBaseUrl", "translationModel", "targetLanguage"]);
+    const cfg = await chrome.storage.local.get(["apiKey", "asrBaseUrl", "asrModel", "translationBaseUrl", "translationModel", "targetLanguage", "azureTranslatorKey", "azureTranslatorRegion", "googleTranslateKey"]);
     if (!cfg.apiKey) throw new Error("Add an API key in Provider settings first.");
     const asrBase = (cfg.asrBaseUrl || "https://api.openai.com/v1").replace(/\\/$/, "");
     const form = new FormData();
@@ -87,22 +87,7 @@ async function processQueue() {
     if (!asrResponse.ok) throw new Error("ASR error " + asrResponse.status + ": " + (await asrResponse.text()).slice(0, 300));
     const original = (await asrResponse.text()).trim();
     if (original) {
-      const trBase = (cfg.translationBaseUrl || asrBase).replace(/\\/$/, "");
-      const trResponse = await fetch(trBase + "/chat/completions", {
-        method: "POST",
-        headers: { Authorization: "Bearer " + cfg.apiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: cfg.translationModel || "gpt-4o-mini",
-          temperature: 0.2,
-          messages: [
-            { role: "system", content: "Translate the user's speech into " + (cfg.targetLanguage || "Chinese") + ". Return only the translation. Preserve meaning and names." },
-            { role: "user", content: original }
-          ]
-        })
-      });
-      if (!trResponse.ok) throw new Error("Translation error " + trResponse.status + ": " + (await trResponse.text()).slice(0, 300));
-      const data = await trResponse.json();
-      const translated = data.choices?.[0]?.message?.content?.trim();
+      const translated = await translateText(original, cfg, asrBase);
       if (translated) await chrome.runtime.sendMessage({ type: "SUBTITLE", tabId: activeTabId, original, translated });
     }
   } catch (error) {
@@ -115,4 +100,38 @@ async function processQueue() {
 
 function reportError(error) {
   chrome.runtime.sendMessage({ type: "CAPTURE_ERROR", tabId: activeTabId, error }).catch(() => {});
+}
+
+async function translateText(original, cfg, asrBase) {
+  const target = ({Chinese:"zh-Hans",English:"en",Japanese:"ja",Korean:"ko",French:"fr",Spanish:"es"})[cfg.targetLanguage || "Chinese"] || "zh-Hans";
+  const errors = [];
+  if (cfg.azureTranslatorKey) {
+    try {
+      const headers = {"Ocp-Apim-Subscription-Key":cfg.azureTranslatorKey,"Content-Type":"application/json"};
+      if (cfg.azureTranslatorRegion) headers["Ocp-Apim-Subscription-Region"] = cfg.azureTranslatorRegion;
+      const r = await fetch("https://api.cognitive.microsofttranslator.com/translate?api-version=3.0&to="+encodeURIComponent(target), {method:"POST",headers,body:JSON.stringify([{Text:original}])});
+      if (!r.ok) throw new Error("Azure "+r.status);
+      const data = await r.json();
+      const value = data[0]?.translations?.[0]?.text;
+      if (value) return value;
+      throw new Error("Empty Azure translation");
+    } catch(e) { errors.push(e.message); }
+  }
+  if (cfg.googleTranslateKey) {
+    try {
+      const r = await fetch("https://translation.googleapis.com/language/translate/v2?key="+encodeURIComponent(cfg.googleTranslateKey), {method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({q:original,target:target==="zh-Hans"?"zh-CN":target,format:"text"})});
+      if (!r.ok) throw new Error("Google "+r.status);
+      const data = await r.json();
+      const value = data.data?.translations?.[0]?.translatedText;
+      if (value) return value;
+      throw new Error("Empty Google translation");
+    } catch(e) { errors.push(e.message); }
+  }
+  if (cfg.apiKey) {
+    const trBase = (cfg.translationBaseUrl || asrBase).replace(/\\/$/, "");
+    const r = await fetch(trBase+"/chat/completions",{method:"POST",headers:{Authorization:"Bearer "+cfg.apiKey,"Content-Type":"application/json"},body:JSON.stringify({model:cfg.translationModel||"gpt-4o-mini",temperature:0.2,messages:[{role:"system",content:"Translate to "+(cfg.targetLanguage||"Chinese")+". Return only translation."},{role:"user",content:original}]})});
+    if (!r.ok) throw new Error("Translation "+r.status);
+    return (await r.json()).choices?.[0]?.message?.content?.trim();
+  }
+  throw new Error("No translation provider configured: "+errors.join("; "));
 }
