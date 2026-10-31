@@ -1,45 +1,31 @@
 # AI Line Translator
 
-A personal-use Chrome Manifest V3 extension for live bilingual subtitles on browser audio. The first milestone targets SCORM training pages and YouTube.
+A Chrome Manifest V3 extension for bilingual subtitles on browser-based training videos.
 
-## What works in this MVP
+## Experimental native-caption mode (v0.2.0)
 
-- User-initiated tab audio capture through `chrome.tabCapture`.
-- Captured audio is played back through an offscreen document so the tab does not go silent.
-- Audio is chunked and sent to a configurable OpenAI-compatible transcription endpoint (default path: `/v1/audio/transcriptions`).
-- Recognized text is translated through a configurable chat-completions endpoint.
-- Original text and Chinese translation are shown in a draggable in-page subtitle overlay.
-- API keys and endpoint settings are stored locally in `chrome.storage.local`; never commit credentials.
+- Reads visible caption/subtitle DOM nodes and native HTML5 text tracks in the current page and accessible frames.
+- Sends caption text to a Google web-translation endpoint from the extension service worker; no Google Cloud key is requested.
+- Shows original text plus Chinese translation in a compact draggable overlay.
+- Includes a small in-memory translation cache to reduce repeated requests.
+- Native-caption mode does not require an ASR API key.
 
 ## Install
 
-1. Clone or download this repository.
+1. Download or clone this repository.
 2. Open `chrome://extensions`.
 3. Enable **Developer mode**.
-4. Choose **Load unpacked** and select this project directory.
-5. Open a SCORM training page or YouTube video, then click the extension icon and press **Start capture**.
+4. Click **Load unpacked** and select the project directory.
+5. Refresh the training page, open the extension popup, and click **读取网页字幕**.
 
-## Configure providers
+## Important limitations
 
-Open the extension popup and expand **Provider settings**.
+- The caption reader uses common player selectors and HTML5 text tracks. CSOD may use a custom player, canvas rendering, closed shadow DOM, or cross-origin frame restrictions; therefore detection is not guaranteed until tested on the exact course page.
+- The Google web endpoint used here is an unofficial web interface, not a supported or guaranteed free API. It may be throttled, changed, or blocked. Do not use it as a production SLA.
+- If captions cannot be extracted, the extension currently cannot translate them in this mode. Audio capture remains available as a separate, API-configured fallback.
+- Translation requests are sent to Google. Do not use this mode for confidential content unless this data flow is acceptable.
+- No API key is embedded in the extension.
 
-- **ASR base URL**: OpenAI-compatible base URL, e.g. `https://api.openai.com/v1`.
-- **ASR model**: e.g. `whisper-1` (must be supported by your provider).
-- **Translation base URL**: OpenAI-compatible base URL, e.g. `https://api.openai.com/v1`.
-- **Translation model**: a chat-completions model supported by your provider.
-- **API key**: stored in this browser profile only.
+## Provider roadmap
 
-The extension appends `/audio/transcriptions` and `/chat/completions` to the configured base URLs. If your provider uses a different API shape, it needs a provider adapter.
-
-## Notes / limitations
-
-- This is an early functional MVP, not a claim of production-grade streaming. MediaRecorder emits short WebM chunks; provider support for independent WebM chunks varies.
-- Transcription and translation are sequential and can have latency. A future iteration should use a streaming ASR provider and rolling context.
-- Browser capture requires a user gesture and works on the active tab. Protected/DRM media, browser-internal pages, and some enterprise-managed pages may block capture.
-- Chrome extension audio capture permissions and host permissions are declared in the manifest. Review them before distributing.
-- The extension does not include a default paid API key or guarantee any provider's free tier.
-- No TTS is included in this first version.
-
-## Development
-
-No build step is required. Source is plain JavaScript, HTML, and CSS.
+A generic provider configuration is planned for user-supplied OpenAI-compatible models (for example Xiaomi MiMo, DeepSeek, or other compatible services). It is not yet implemented in this version.
