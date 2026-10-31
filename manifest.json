@@ -1,15 +1,16 @@
 {
   "manifest_version": 3,
   "name": "AI Line Translator",
-  "version": "0.1.0",
-  "description": "Live bilingual subtitles for browser audio.",
-  "permissions": ["activeTab", "tabCapture", "offscreen", "storage"],
-  "host_permissions": ["<all_urls>"],
+  "version": "0.2.0",
+  "description": "Live bilingual subtitles for browser audio and native captions.",
+  "permissions": ["activeTab", "tabs", "tabCapture", "offscreen", "storage"],
+  "host_permissions": ["<all_urls>", "https://translate.googleapis.com/*"],
   "background": { "service_worker": "background.js", "type": "module" },
   "action": { "default_title": "AI Line Translator", "default_popup": "popup.html" },
   "content_scripts": [{
     "matches": ["<all_urls>"],
     "js": ["content.js"],
-    "run_at": "document_idle"
+    "run_at": "document_idle",
+    "all_frames": true
   }]
 }
