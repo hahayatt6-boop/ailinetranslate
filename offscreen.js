@@ -3,6 +3,7 @@ let recorder;
 let audioContext;
 let source;
 let activeTabId;
+let capturing = false;
 let busy = false;
 let queue = [];
 
@@ -26,22 +27,37 @@ async function begin(streamId, tabId) {
   });
   audioContext = new AudioContext();
   source = audioContext.createMediaStreamSource(stream);
+  // tabCapture mutes the original tab unless the captured stream is routed back to speakers.
   source.connect(audioContext.destination);
+  capturing = true;
+  startSegment();
+}
+
+function startSegment() {
+  if (!capturing || !stream) return;
   const mimeType = MediaRecorder.isTypeSupported("audio/webm;codecs=opus") ? "audio/webm;codecs=opus" : "audio/webm";
   recorder = new MediaRecorder(stream, { mimeType });
-  recorder.ondataavailable = event => {
-    if (event.data?.size) {
-      queue.push(event.data);
+  const chunks = [];
+  recorder.ondataavailable = event => { if (event.data?.size) chunks.push(event.data); };
+  recorder.onerror = event => reportError(event.error?.message || "Audio recording failed.");
+  recorder.onstop = () => {
+    const blob = new Blob(chunks, { type: mimeType });
+    if (blob.size) {
+      queue.push(blob);
       processQueue();
     }
+    recorder = null;
+    if (capturing) startSegment();
   };
-  recorder.onerror = event => reportError(event.error?.message || "Audio recording failed.");
-  recorder.start(5000);
+  recorder.start();
+  setTimeout(() => {
+    if (capturing && recorder?.state === "recording") recorder.stop();
+  }, 5000);
 }
 
 function end() {
+  capturing = false;
   if (recorder && recorder.state !== "inactive") recorder.stop();
-  recorder = null;
   stream?.getTracks().forEach(track => track.stop());
   stream = null;
   source?.disconnect();
@@ -49,7 +65,6 @@ function end() {
   audioContext?.close().catch(() => {});
   audioContext = null;
   queue = [];
-  busy = false;
 }
 
 async function processQueue() {
@@ -59,7 +74,7 @@ async function processQueue() {
   try {
     const cfg = await chrome.storage.local.get(["apiKey", "asrBaseUrl", "asrModel", "translationBaseUrl", "translationModel", "targetLanguage"]);
     if (!cfg.apiKey) throw new Error("Add an API key in Provider settings first.");
-    const asrBase = (cfg.asrBaseUrl || "https://api.openai.com/v1").replace(/\/$/, "");
+    const asrBase = (cfg.asrBaseUrl || "https://api.openai.com/v1").replace(/\\/$/, "");
     const form = new FormData();
     form.append("file", new File([blob], "audio.webm", { type: blob.type || "audio/webm" }));
     form.append("model", cfg.asrModel || "whisper-1");
@@ -72,7 +87,7 @@ async function processQueue() {
     if (!asrResponse.ok) throw new Error("ASR error " + asrResponse.status + ": " + (await asrResponse.text()).slice(0, 300));
     const original = (await asrResponse.text()).trim();
     if (original) {
-      const trBase = (cfg.translationBaseUrl || asrBase).replace(/\/$/, "");
+      const trBase = (cfg.translationBaseUrl || asrBase).replace(/\\/$/, "");
       const trResponse = await fetch(trBase + "/chat/completions", {
         method: "POST",
         headers: { Authorization: "Bearer " + cfg.apiKey, "Content-Type": "application/json" },
