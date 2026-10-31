@@ -3,11 +3,15 @@
   window.__aiLineTranslatorLoaded = true;
   let host;
   let timer;
+  let prefs = { subtitleMode: "both", subtitleVisible: true };
+  chrome.storage.local.get(["subtitleMode", "subtitleVisible"]).then(v => { prefs = {...prefs,...v}; });
+  chrome.storage.onChanged.addListener(changes => { for (const key of ["subtitleMode","subtitleVisible"]) if (changes[key]) prefs[key] = changes[key].newValue; if (host?.isConnected) applyPrefs(); });
+  function applyPrefs() { if (!host?.isConnected) return; host.style.display = prefs.subtitleVisible === false ? "none" : "block"; const s=host.shadowRoot; s.querySelector(".original").style.display = prefs.subtitleMode === "zh" ? "none" : "block"; s.querySelector(".translated").style.display = prefs.subtitleMode === "original" ? "none" : "block"; }
   function ensureOverlay() {
     if (host?.isConnected) return;
     host = document.createElement("div");
     host.id = "ai-line-translator-host";
-    host.style.cssText = "all:initial;position:fixed;z-index:2147483647;left:50%;bottom:7%;transform:translateX(-50%);width:min(88vw,900px);pointer-events:none;";
+    host.style.cssText = "all:initial;position:fixed;z-index:2147483647;left:50%;bottom:16%;transform:translateX(-50%);width:min(78vw,680px);pointer-events:none;";
     const shadow = host.attachShadow({ mode: "open" });
     shadow.innerHTML = `
       <style>
@@ -15,6 +19,7 @@
         .original{font-size:14px;color:#e6eaf0}.translated{font-size:20px;font-weight:650;margin-top:5px}.error{font-size:13px;color:#ffb4a9;margin-top:5px}
       </style><div class="box"><div class="original"></div><div class="translated"></div></div>`;
     document.documentElement.appendChild(host);
+    applyPrefs();
     const box = shadow.querySelector(".box");
     let drag = null;
     box.addEventListener("pointerdown", e => { drag = { x:e.clientX, y:e.clientY, left:host.offsetLeft, top:host.offsetTop }; box.setPointerCapture(e.pointerId); });
@@ -28,6 +33,7 @@
       s.querySelector(".original").textContent = message.original || "";
       s.querySelector(".translated").textContent = message.translated || "";
       s.querySelector(".error")?.remove();
+      applyPrefs();
       clearTimeout(timer);
       timer = setTimeout(() => { if (host?.isConnected) host.remove(); }, 12000);
     } else if (message.type === "CAPTURE_ERROR") {
