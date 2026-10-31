@@ -1,4 +1,8 @@
-const ids = ["apiKey","asrBaseUrl","asrModel","translationBaseUrl","translationModel","targetLanguage"];
+const ids = ["apiKey","asrBaseUrl","asrModel","translationBaseUrl","translationModel","targetLanguage","subtitleMode"];
+const visible = document.getElementById("subtitleVisible");
+chrome.storage.local.get(["subtitleVisible"]).then(v => { visible.checked = v.subtitleVisible !== false; });
+visible.addEventListener("change", () => chrome.storage.local.set({subtitleVisible:visible.checked}));
+document.getElementById("subtitleMode").addEventListener("change", e => chrome.storage.local.set({subtitleMode:e.target.value}));
 const status = document.getElementById("status");
 chrome.storage.local.get(ids).then(cfg => ids.forEach(id => { if (cfg[id]) document.getElementById(id).value = cfg[id]; }));
 document.getElementById("save").addEventListener("click", async () => {
