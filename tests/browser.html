@@ -1,0 +1,15 @@
+<!doctype html><meta charset="utf-8"><title>字幕读取回归验证</title>
+<style>body{font:20px system-ui;margin:40px;background:#edf1f6}button{padding:12px;margin:6px}.caption{padding:20px;background:#fff}</style>
+<h1>字幕读取回归验证</h1>
+<p>本页模拟网页字幕与扩展消息接口；翻译返回测试文字。</p>
+<div class="caption">Hello world</div>
+<button id="start">启动字幕读取</button><button id="stop">停止字幕读取</button>
+<button id="change">切换字幕</button><p id="result"></p>
+<script>
+let messageListener;
+window.chrome={storage:{local:{get:async()=>({})},onChanged:{addListener(){}}},runtime:{onMessage:{addListener(fn){messageListener=fn;}},sendMessage:async message=>({ok:true,translated:message.text==='Hello world'?'你好，世界':'下一句字幕'})}};
+for(const [id,type] of [['start','START_SUBTITLE_READING'],['stop','STOP_SUBTITLE_READING']]) {
+  document.getElementById(id).onclick=()=>messageListener({type},{},result=>document.getElementById('result').textContent=JSON.stringify(result));
+}
+document.getElementById('change').onclick=()=>document.querySelector('.caption').textContent='Next caption';
+</script><script src="/content.js"></script>

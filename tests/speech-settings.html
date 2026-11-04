@@ -1,0 +1,14 @@
+<!doctype html><meta charset="utf-8"><title>HappySubs 语音设置预览</title>
+<style>body{margin:24px;width:340px;background:#fff6f6;color:#443138;font:14px/1.6 system-ui}button,select,input[type=password]{padding:8px;border:1px solid #dcc;border-radius:7px}button{background:#e85b5b;color:white;cursor:pointer}</style>
+<h2>HappySubs 语音设置</h2><p>界面验证页：仅保存测试输入，不调用云端。</p>
+<video id="probeVideo" controls style="width:320px;height:80px"></video>
+<div id="probeCaption" class="probe-caption"><span id="probeEnglish"></span><br><span id="probeChinese"></span></div>
+<style>.probe-caption{display:none;padding:10px;background:#333;color:white}.probe-caption.yds-live-visible{display:block}</style>
+<!--SPEECH_CONFIG-->
+<script>
+const changes=[];
+window.chrome={runtime:{async sendMessage(message){return {status:message.key.includes('one')?'exhausted':'available'};}},storage:{local:{async get(){return JSON.parse(localStorage.getItem('speech-preview')||'{}');},async set(values){const old=await this.get();localStorage.setItem('speech-preview',JSON.stringify({...old,...values}));for(const fn of changes)fn(Object.fromEntries(Object.entries(values).map(([k,v])=>[k,{newValue:v}])),'local');}},onChanged:{addListener(fn){changes.push(fn);}}}};
+<!--PLAYBACK_FN-->
+async function getActiveSupportedTab(){return {id:1};}
+async function sendContent(tabId,message){return ydsSetPlaybackRate(message.rate);}
+</script><script src="/speech-settings.js"></script>

@@ -3,6 +3,8 @@
   window.__aiLineTranslatorLoaded = true;
 
   let host = null, lastText = "", translateTimer = null, observer = null;
+  let readerActive = false, pollTimer = null, revision = 0;
+  const trackListeners = new Map();
   let prefs = { subtitleMode: "both", subtitleVisible: true, captionReaderEnabled: true };
   chrome.storage.local.get(["subtitleMode","subtitleVisible","captionReaderEnabled"]).then(v => prefs = {...prefs,...v});
   chrome.storage.onChanged.addListener(changes => {
@@ -46,16 +48,21 @@
 
   function normalize(s) { return (s||"").replace(/\s+/g," ").trim(); }
   function submitCaption(raw) {
+    if (!readerActive) return;
     const text=normalize(raw);
     if (!text || text.length<2 || text===lastText || text.length>500) return;
     lastText=text;
+    const requestRevision = ++revision;
     clearTimeout(translateTimer);
+    show(text, "翻译中…");
     translateTimer=setTimeout(async()=>{
       try {
         const result=await chrome.runtime.sendMessage({type:"TRANSLATE_CAPTION",text,target:"zh-CN"});
+        if (!readerActive || requestRevision !== revision) return;
         if (!result?.ok) throw new Error(result?.error||"翻译服务暂不可用");
         show(text,result.translated);
       } catch(e) {
+        if (!readerActive || requestRevision !== revision) return;
         ensureOverlay();
         host.shadowRoot.querySelector(".original").textContent=text;
         host.shadowRoot.querySelector(".translated").textContent="";
@@ -79,6 +86,7 @@
   ];
 
   function scanCaptions() {
+    if (!readerActive) return;
     for (const selector of captionSelectors) {
       let nodes=[];
       try { nodes=Array.from(document.querySelectorAll(selector)); } catch {}
@@ -98,12 +106,14 @@
     document.querySelectorAll("video").forEach(video=>{
       try {
         Array.from(video.textTracks||[]).forEach(track=>{
-          if (track.__aiLineTranslatorBound) return;
-          track.__aiLineTranslatorBound=true;
-          track.addEventListener("cuechange",()=>{
+          if (trackListeners.has(track)) return;
+          const onCueChange = ()=>{
             const active=Array.from(track.activeCues||[]).map(c=>c.text).join(" ");
             if(active) submitCaption(active);
-          });
+          };
+          trackListeners.set(track, onCueChange);
+          track.addEventListener("cuechange", onCueChange);
+          onCueChange();
         });
       } catch {}
     });
@@ -111,15 +121,37 @@
 
   function startReader() {
     if (observer) return;
+    readerActive=true;
+    lastText="";
     observer=new MutationObserver(()=>{scanCaptions();watchTextTracks();});
     observer.observe(document.documentElement,{subtree:true,childList:true,characterData:true});
     scanCaptions(); watchTextTracks();
-    setInterval(()=>{scanCaptions();watchTextTracks();},900);
+    pollTimer=setInterval(()=>{scanCaptions();watchTextTracks();},900);
+  }
+
+  function stopReader() {
+    readerActive=false;
+    revision++;
+    observer?.disconnect(); observer=null;
+    clearInterval(pollTimer); pollTimer=null;
+    clearTimeout(translateTimer); translateTimer=null;
+    for (const [track, listener] of trackListeners) track.removeEventListener("cuechange", listener);
+    trackListeners.clear();
+    lastText="";
+    host?.remove(); host=null;
+  }
+
+  function readerStatus() {
+    const videos=Array.from(document.querySelectorAll("video")).filter(video=>{
+      const rect=video.getBoundingClientRect();
+      return rect.width>20 && rect.height>20;
+    }).length;
+    return {ok:true, videos, hasCaption:!!lastText};
   }
 
   chrome.runtime.onMessage.addListener((message,sender,sendResponse)=>{
-    if(message.type==="START_SUBTITLE_READING"){startReader();sendResponse({ok:true});}
-    if(message.type==="STOP_SUBTITLE_READING"){observer?.disconnect();observer=null;sendResponse({ok:true});}
+    if(message.type==="START_SUBTITLE_READING"){startReader();sendResponse(readerStatus());}
+    if(message.type==="STOP_SUBTITLE_READING"){stopReader();sendResponse({ok:true});}
     if(message.type==="SUBTITLE"){show(message.original||"",message.translated||"");}
     if(message.type==="CAPTURE_ERROR"){ensureOverlay();host.shadowRoot.querySelector(".error").textContent=message.error||"未知错误";}
     return true;

@@ -1,0 +1,18 @@
+<!doctype html><meta charset="utf-8"><title>HappySubs 本地连接验证</title>
+<style>body{font:18px/1.7 system-ui;margin:40px}button{padding:12px;margin:8px}#state{color:#175d35}</style>
+<h1>HappySubs 本地连接验证</h1>
+<p>使用插件的真实连接代码、浏览器原生定时器和本机识别服务。</p>
+<button id="start">连接本地识别</button><button id="stop">停止连接</button>
+<p id="state">尚未连接</p><p id="hello"></p>
+<script src="/speech-connection.js"></script>
+<script>
+let connection;
+document.getElementById('start').onclick=async()=>{
+  connection?.stop();
+  connection=new HappySpeechConnection({config:{mode:'local'},publish(){},
+    onStatus:(status,label)=>document.getElementById('state').textContent=label,
+    onHello:hello=>document.getElementById('hello').textContent='收到识别程序响应；二次识别模型：'+(hello.refine?'已加载':'未加载')});
+  try{await connection.start();}catch(error){document.getElementById('state').textContent='失败：'+error.name;}
+};
+document.getElementById('stop').onclick=()=>connection?.stop();
+</script>

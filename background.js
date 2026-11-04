@@ -25,7 +25,10 @@ async function sendToFrames(tabId, type) {
       return null;
     }
   }));
-  return results.filter(result => result?.ok).length;
+  const connected = results.filter(result => result?.ok);
+  return { frames: connected.length,
+    videos: connected.reduce((sum, result) => sum + (result.videos || 0), 0),
+    hasCaption: connected.some(result => result.hasCaption) };
 }
 
 const OFFSCREEN_URL = "offscreen.html";
@@ -51,11 +54,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.type === "START_SUBTITLE_READING" || message.type === "STOP_SUBTITLE_READING") {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       if (!tab?.id) throw new Error("No active tab found.");
-      const count = await sendToFrames(tab.id, message.type);
-      if (!count && message.type === "START_SUBTITLE_READING") {
+      const status = await sendToFrames(tab.id, message.type);
+      if (!status.frames && message.type === "START_SUBTITLE_READING") {
         throw new Error("没有在当前页面找到可运行的字幕监听脚本。请刷新课程页面，并确认扩展已启用。");
       }
-      sendResponse({ ok: true, frames: count });
+      sendResponse({ ok: true, ...status });
     } else if (message.type === "START_CAPTURE") {
       const [tab] = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
       if (!tab?.id) throw new Error("No active tab found.");

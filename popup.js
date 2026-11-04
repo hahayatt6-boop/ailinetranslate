@@ -22,8 +22,17 @@ document.getElementById("stop").addEventListener("click", async () => {
 });
 
 document.getElementById("startReader").addEventListener("click", async () => {
-  const result = await chrome.runtime.sendMessage({type:"START_SUBTITLE_READING"});
-  status.textContent = result?.ok ? "已在 " + result.frames + " 个页面框架启动字幕读取。请播放带英文字幕的课程。" : "启动失败：" + (result?.error || "未知错误");
+  status.textContent = "正在检查网页字幕…";
+  try {
+    const result = await chrome.runtime.sendMessage({type:"START_SUBTITLE_READING"});
+    if (!result?.ok) throw new Error(result?.error || "未知错误");
+    status.textContent = result.hasCaption
+      ? "已读取到网页字幕，正在翻译。"
+      : "已在 " + result.frames + " 个页面框架启动监听，尚未发现可读取的字幕。" +
+        (result.videos ? "已检测到视频：请开启播放器字幕；画面内嵌的字幕需要 OCR 或音频识别。" : "请播放课程并开启字幕。");
+  } catch (error) {
+    status.textContent = "启动失败：" + error.message;
+  }
 });
 document.getElementById("stopReader").addEventListener("click", async () => {
   const result = await chrome.runtime.sendMessage({type:"STOP_SUBTITLE_READING"});

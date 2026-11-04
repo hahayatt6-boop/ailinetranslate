@@ -1,0 +1,22 @@
+<details class="speechConfig" style="margin:12px 0;padding:10px;border:1px solid #e6caca;border-radius:10px">
+  <summary style="cursor:pointer;font-weight:600">语音识别：Deepgram / 百炼 / 本地</summary>
+  <label style="display:block;margin-top:10px">识别方式
+    <select id="speechMode" style="width:100%;margin-top:5px"><option value="cloud">云端优先</option><option value="local">仅本地识别</option></select>
+  </label>
+  <label style="display:block;margin-top:10px">云端识别服务
+    <select id="speechProvider" aria-label="云端识别服务" style="width:100%;margin-top:5px"><option value="deepgram">Deepgram</option><option value="bailian">阿里云百炼 · Paraformer</option></select>
+  </label>
+  <p style="font-size:12px;opacity:.75">每家最多保存 5 个 Key，独立配置，按顺序使用；留空的项会跳过。</p>
+  <p id="speechProviderHint" style="font-size:12px;opacity:.75"></p>
+  <div id="speechKeys"></div>
+  <button type="button" id="speechCheckKeys" style="margin-top:6px">检查已保存的 Key</button>
+  <a id="speechConsoleLink" href="https://console.deepgram.com/" target="_blank" rel="noopener" style="display:block;font-size:12px;margin-top:5px">管理额度 / 获取新 Key →</a>
+  <label style="display:block;margin:10px 0;font-size:12px"><input type="checkbox" id="speechFallback" checked> 云端不可用时自动回退本地</label>
+  <button type="button" id="speechSave">保存 Key 和设置</button>
+  <p id="speechSaveStatus" role="status" style="font-size:12px"></p>
+</details>
+<p id="speechCurrentStatus" role="status" style="font-size:12px;margin:8px 0"></p>
+<label style="display:flex;align-items:center;justify-content:space-between;margin:10px 0">播放速度
+  <select id="speechPlaybackRate" aria-label="播放速度"><option value="0.5">0.5×</option><option value="0.75">0.75×</option><option value="1" selected>1× 正常</option><option value="1.25">1.25×</option><option value="1.5">1.5×</option><option value="1.75">1.75×</option><option value="2">2×</option></select>
+</label>
+<p id="speechRateStatus" role="status" style="font-size:12px"></p>

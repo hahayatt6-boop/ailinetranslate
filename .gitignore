@@ -1,0 +1,6 @@
+/artifacts/happysubs-csod/
+/.env.deepgram.local
+/.env.bailian.local
+/artifacts/deepgram-*.log
+/artifacts/bailian-*
+**/__pycache__/
